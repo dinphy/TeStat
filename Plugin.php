@@ -38,10 +38,6 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
 		
 		Typecho_Plugin::factory('Widget_Archive')->header = array('TeStat_Plugin','insertCss');
 		Typecho_Plugin::factory('Widget_Archive')->footer = array('TeStat_Plugin','insertJs');
-		
-		Typecho_Plugin::factory('index.php')->begin = array('TeStat_Plugin', 'setBegin');
-        Typecho_Plugin::factory('index.php')->end = array('TeStat_Plugin', 'setEnd');
-		
     }
     
     /**
@@ -77,12 +73,14 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
 		$delFields = new Typecho_Widget_Helper_Form_Element_Radio('delFields', 
             array(0=>_t('保留数据'),1=>_t('删除数据'),), '0', _t('卸载设置'),_t('卸载插件后数据是否保留'));
         $form->addInput($delFields);
-		$allow_stat = new Typecho_Widget_Helper_Form_Element_Radio('allow_stat', 
-            array(0=>_t('关闭'),1=>_t('开启'),), '1', _t('统计运行信息'),_t('是否开启运行信息统计'));
+
+        $allow_stat = new Typecho_Widget_Helper_Form_Element_Radio('filter_spider',
+            array(0=>_t('关闭'), 1=>_t('开启'),), '1', _t('是否过滤爬虫'), _t('开启后爬虫不记录到阅读次数'));
         $form->addInput($allow_stat);
-		$allow_stat_mem = new Typecho_Widget_Helper_Form_Element_Radio('allow_stat_mem', 
-            array(0=>_t('关闭'),1=>_t('开启'),), '1', _t('统计内存开销'),_t('是否开启内存开销统计'));
-        $form->addInput($allow_stat_mem);
+
+        $callback_select = new Typecho_Widget_Helper_Form_Element_Text('callback_select', NULL, '.like-num-show', _t('点赞自增选择器'), _t('该项用于点赞成功后数值 +1'));
+        $form->addInput($callback_select);
+
 	}
     
     /**
@@ -93,66 +91,14 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
      * @return void
      */
     public static function personalConfig(Typecho_Widget_Helper_Form $form){}
-    
-	//记录开始执行的参数
-	public static function setBegin(){
-		$options = Typecho_Widget::widget('Widget_Options')->plugin('TeStat');
-		
-		if(!$options->allow_stat) return;
-		
-		self::$info['begin'] = microtime(TRUE);
-		
-		if($options->allow_stat_mem)
-			self::$mem['begin'] =  memory_get_usage();
-	}
-	//记录执行结束的参数
-	public static function setEnd(){
-		$options = Typecho_Widget::widget('Widget_Options')->plugin('TeStat');
-		
-		if(!$options->allow_stat) return;
-		
-		if(isset(self::$info['end'])) return;
-		
-		self::$info['end'] = microtime(TRUE);
-		
-		if($options->allow_stat_mem)
-			self::$mem['end'] =  memory_get_usage();
-		
-	}
-	//显示记录的各种统计项
-	public static function runtime($format='吞吐率:{rate},运行时间:{runtime},内存开销:{mem},加载文件:{files}'){
-		$options = Typecho_Widget::widget('Widget_Options');
-		if(!isset($options->plugins['activated']['TeStat'])) return;
 
-		$options = $options->plugin('TeStat');
-		if(!$options->allow_stat) return;
-		
-		if(isset(self::$info['begin']) && !isset(self::$info['end'])){
-			self::setEnd();
-		}
-		$stat = array(
-			'runtime'=>'未统计',
-			'mem'=>'未统计',
-			'files'=>count(get_included_files()),
-			'rate'=>'未统计',
-		);
-		
-		if(isset(self::$info['begin']) && isset(self::$info['end'])){
-			$stat['runtime'] = number_format(self::$info['end']-self::$info['begin'],4).' s';
-			$stat['rate'] = number_format(1/(self::$info['end']-self::$info['begin']),2).' req/s';
-		}
-		if(isset(self::$mem['begin']) && isset(self::$mem['end'])){
-			$stat['mem'] = number_format((self::$mem['end']-self::$mem['begin'])/1024).' kb';
-		}
-		echo str_replace(array('{runtime}','{mem}','{files}','{rate}'),$stat,$format);
-	}
     /**
      * 增加浏览量
      * @params Widget_Archive   $archive
      * @return void
      */
     public static function viewCounter($archive){
-        if($archive->is('single')){
+        if($archive->is('single') && !$archive->parent){
             $cid = $archive->cid;
             $views = Typecho_Cookie::get('__post_views');
             if(empty($views)){
@@ -160,15 +106,93 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
             }else{
                 $views = explode(',', $views);
             }
-            if(!in_array($cid,$views)){
+
+            $options = Typecho_Widget::widget('Widget_Options')->plugin('TeStat');
+
+            if(!in_array($cid,$views) && (!$options->filter_spider || !self::isBot())){  // 判断过滤爬虫的访问
                 $db = Typecho_Db::get();
                 $db->query($db->update('table.contents')->rows(array('viewsNum' => (int)$archive->viewsNum+1))->where('cid = ?', $cid));
+                if (count($views) > 10) {
+                    $views = array();
+                }
                 array_push($views, $cid);
                 $views = implode(',', $views);
-                Typecho_Cookie::set('__post_views', $views); //记录查看cookie
+                Typecho_Cookie::set('__post_views', $views, time() + 7200); //记录查看cookie
             }
         }
     }
+
+    public static function isBot() {
+        $bots = array(
+            'TencentTraveler',
+            'Baiduspider',
+            'BaiduGame',
+            'Googlebot',
+            'msnbot',
+            'Sosospider+',
+            'Sogou web spider',
+            'ia_archiver',
+            'Yahoo! Slurp',
+            'YoudaoBot',
+            'Yahoo Slurp',
+            'MSNBot',
+            'Java (Often spam bot)',
+            'BaiDuSpider',
+            'Voila',
+            'Yandex bot',
+            'BSpider',
+            'twiceler',
+            'Sogou Spider',
+            'Speedy Spider',
+            'Google AdSense',
+            'Heritrix',
+            'Python-urllib',
+            'Alexa (IA Archiver)',
+            'Ask',
+            'Exabot',
+            'Custo',
+            'OutfoxBot/YodaoBot',
+            'yacy',
+            'SurveyBot',
+            'legs',
+            'lwp-trivial',
+            'Nutch',
+            'StackRambler',
+            'The web archive (IA Archiver)',
+            'Perl tool',
+            'MJ12bot',
+            'Netcraft',
+            'MSIECrawler',
+            'WGet tools',
+            'larbin',
+            'Fish search',
+            'crawler',
+            'bingbot',
+            'YisouSpider',
+            'AhrefsBot',
+            'ToutiaoSpider',
+            '360Spider',
+        );
+
+        $request = Typecho_Request::getInstance();
+        $ua = $request->getAgent();
+
+        if (empty($ua)) {
+            return true;
+        }
+
+        $ua = strtolower($ua);
+        foreach ($bots as $val) {
+            $str = strtolower($val);
+            if (strpos($ua, $str) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
 	public static function insertCss($header,$widget){
 		$action = Typecho_Common::url('/action/',Helper::options()->index);
 		echo '<style type="text/css">.testat-dialog{position:fixed;top:100px;left:50%;padding:10px;background-color:#fff;display:none;-webkit-border-radius: 3px;-moz-border-radius: 3px;border-radius: 3px;z-index:1024;}
@@ -176,6 +200,11 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
 .testat-dialog.success{background-color:#24AA42;color:#fff;}</style><script type="text/javascript">window.action="'.$action.'";</script>';
 	}
 	public static function insertJs($widget){
+
+        $options = Typecho_Widget::widget('Widget_Options')->plugin('TeStat');
+
+        if(!$options->allow_stat)
+        $callback_select = $options->callback_select;
 		$script = <<<EOT
 <script type="text/javascript">
 $(function(){
@@ -183,13 +212,17 @@ $(function(){
 		e.stopPropagation();
 		e.preventDefault();
 		var that = $(this),num = $(this).data('num'), cid = $(this).data('cid'),numEl = that.find('.post-likes-num');
-		if(cid===undefined) return false;
+		if(cid === undefined) return false;
 		$.get(window.action+'likes?cid='+cid).success(function(rs){
-			if(rs.status==1){
+			if(rs.status === 1){
 				if(numEl.length>0){
 					numEl.text(num+1);
 				}
 				testatAlert(rs.msg===undefined ? '已成功为该文章点赞!' : rs.msg);
+				$('{$callback_select}').text(function() {
+				  return parseInt($(this).text()) + 1;
+				});
+				
 			}else{
 				testatAlert(rs.msg===undefined ? '操作出错!' : rs.msg,'err');
 			}
@@ -198,7 +231,7 @@ $(function(){
 });
 function testatAlert(msg,type,time){
 	type = type === undefined ? 'success' : 'error';
-	time = time === undefined ? (type=='success' ? 1500 : 3000) : time;
+	time = time === undefined ? (type === 'success' ? 1500 : 3000) : time;
 	var html = '<div class="testat-dialog '+type+'">'+msg+'</div>';
 	$(html).appendTo($('body')).fadeIn(300,function(){
 		setTimeout(function(){
