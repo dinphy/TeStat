@@ -2,6 +2,7 @@
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 class TeStat_Action extends Typecho_Widget implements Widget_Interface_Do
 {
+	static public $split = '-';
 	private $db;
 	private $options;
 	private $prefix;
@@ -19,7 +20,7 @@ class TeStat_Action extends Typecho_Widget implements Widget_Interface_Do
 		if(empty($likes)){
 			$likes = array();
 		}else{
-			$likes = explode(',', $likes);
+			$likes = explode(self::$split, $likes);
 		}
 		
 		if(!in_array($cid,$likes)){
@@ -29,7 +30,7 @@ class TeStat_Action extends Typecho_Widget implements Widget_Interface_Do
                 $likes = array();
             }
 			array_push($likes, $cid);
-			$likes = implode(',', $likes);
+			$likes = implode(self::$split, $likes);
 			Typecho_Cookie::set('__post_likes', $likes, time() + 7200); //记录查看cookie
 			$this->response->throwJson(array('status'=>1,'msg'=>'成功点赞!'));
 		}

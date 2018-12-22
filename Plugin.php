@@ -12,6 +12,7 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
 {
 	public static $info = array();
 	public static $mem = array();
+    public static $split = '-';
     /**
      * 激活插件方法,如果激活失败,直接抛出异常
      * 
@@ -104,7 +105,7 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
             if(empty($views)){
                 $views = array();
             }else{
-                $views = explode(',', $views);
+                $views = explode(self::$split, $views);
             }
 
             $options = Typecho_Widget::widget('Widget_Options')->plugin('TeStat');
@@ -116,7 +117,7 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
                     $views = array();
                 }
                 array_push($views, $cid);
-                $views = implode(',', $views);
+                $views = implode(self::$split, $views);
                 Typecho_Cookie::set('__post_views', $views, time() + 7200); //记录查看cookie
             }
         }
