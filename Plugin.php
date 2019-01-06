@@ -212,21 +212,28 @@ $(function(){
 	$('.btn-like').click(function(e){
 		e.stopPropagation();
 		e.preventDefault();
-		var that = $(this),num = $(this).data('num'), cid = $(this).data('cid'),numEl = that.find('.post-likes-num');
+		var that = $(this),
+		    num = $(this).data('num'),
+		    cid = $(this).data('cid'),
+		    numEl = that.find('.post-likes-num');
+		
 		if(cid === undefined) return false;
-		$.get(window.action+'likes?cid='+cid).success(function(rs){
-			if(rs.status === 1){
-				if(numEl.length>0){
-					numEl.text(num+1);
-				}
-				testatAlert(rs.msg===undefined ? '已成功为该文章点赞!' : rs.msg);
-				$('{$callback_select}').text(function() {
-				  return parseInt($(this).text()) + 1;
-				});
-				
-			}else{
-				testatAlert(rs.msg===undefined ? '操作出错!' : rs.msg,'err');
-			}
+		$.ajax({
+		    url: window.action+'likes?cid='+cid,
+		    type: 'get',
+		    success: function(rs){
+                if(rs.status === 1){
+                    if(numEl.length>0){
+                        numEl.text(num+1);
+                    }
+                    testatAlert(rs.msg===undefined ? '已成功为该文章点赞!' : rs.msg);
+                    $('{$callback_select}').text(function() {
+                      return parseInt($(this).text()) + 1;
+                    });
+                }else{
+                    testatAlert(rs.msg===undefined ? '操作出错!' : rs.msg,'err');
+                }
+            }
 		});
 	});
 });
