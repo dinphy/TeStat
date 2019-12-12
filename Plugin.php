@@ -196,7 +196,7 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
 
 	public static function insertCss($header,$widget){
 		$action = Typecho_Common::url('/action/',Helper::options()->index);
-		echo '<style type="text/css">.testat-dialog{position:fixed;top:100px;left:50%;padding:10px;background-color:#fff;display:none;-webkit-border-radius: 3px;-moz-border-radius: 3px;border-radius: 3px;z-index:1024;}
+		echo '<style type="text/css">.testat-dialog{position:fixed;top:30%;left:45%;padding:10px;background-color:#fff;display:none;-webkit-border-radius: 3px;-moz-border-radius: 3px;border-radius: 3px;z-index:1024;}
 .testat-dialog.error{background-color:#f40;color:#fff;}
 .testat-dialog.success{background-color:#24AA42;color:#fff;}</style><script type="text/javascript">window.action="'.$action.'";</script>';
 	}
