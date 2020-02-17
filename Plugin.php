@@ -208,45 +208,47 @@ class TeStat_Plugin implements Typecho_Plugin_Interface
         $callback_select = $options->callback_select;
 		$script = <<<EOT
 <script type="text/javascript">
-$(function(){
-	$('.btn-like').click(function(e){
-		e.stopPropagation();
-		e.preventDefault();
-		var that = $(this),
-		    num = $(this).data('num'),
-		    cid = $(this).data('cid'),
-		    numEl = that.find('.post-likes-num');
-		
-		if(cid === undefined) return false;
-		$.ajax({
-		    url: window.action+'likes?cid='+cid,
-		    type: 'get',
-		    success: function(rs){
-                if(rs.status === 1){
-                    if(numEl.length>0){
-                        numEl.text(num+1);
+(function($) {
+    $(function(){
+        $('.btn-like').click(function(e){
+            e.stopPropagation();
+            e.preventDefault();
+            var that = $(this),
+                num = $(this).data('num'),
+                cid = $(this).data('cid'),
+                numEl = that.find('.post-likes-num');
+            
+            if(cid === undefined) return false;
+            $.ajax({
+                url: window.action+'likes?cid='+cid,
+                type: 'get',
+                success: function(rs){
+                    if(rs.status === 1){
+                        if(numEl.length>0){
+                            numEl.text(num+1);
+                        }
+                        testatAlert(rs.msg===undefined ? '已成功为该文章点赞!' : rs.msg);
+                        $('{$callback_select}').text(function() {
+                          return parseInt($(this).text()) + 1;
+                        });
+                    }else{
+                        testatAlert(rs.msg===undefined ? '操作出错!' : rs.msg,'err');
                     }
-                    testatAlert(rs.msg===undefined ? '已成功为该文章点赞!' : rs.msg);
-                    $('{$callback_select}').text(function() {
-                      return parseInt($(this).text()) + 1;
-                    });
-                }else{
-                    testatAlert(rs.msg===undefined ? '操作出错!' : rs.msg,'err');
                 }
-            }
-		});
-	});
-});
-function testatAlert(msg,type,time){
-	type = type === undefined ? 'success' : 'error';
-	time = time === undefined ? (type === 'success' ? 1500 : 3000) : time;
-	var html = '<div class="testat-dialog '+type+'">'+msg+'</div>';
-	$(html).appendTo($('body')).fadeIn(300,function(){
-		setTimeout(function(){
-			$('body > .testat-dialog').remove();
-		},time);
-	});
-}
+            });
+        });
+    });
+    function testatAlert(msg,type,time){
+        type = type === undefined ? 'success' : 'error';
+        time = time === undefined ? (type === 'success' ? 1500 : 3000) : time;
+        var html = '<div class="testat-dialog '+type+'">'+msg+'</div>';
+        $(html).appendTo($('body')).fadeIn(300,function(){
+            setTimeout(function(){
+                $('body > .testat-dialog').remove();
+            },time);
+        });
+    }
+})(jQuery);
 </script>
 EOT;
 		echo $script;
